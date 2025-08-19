@@ -18,7 +18,7 @@ ENV PYPPETEER_CHROMIUM_EXECUTABLE=/usr/bin/chromium
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py screenshot_service.py .
+COPY app.py helper.py .
 
 EXPOSE 10000
 EXPOSE 8000
