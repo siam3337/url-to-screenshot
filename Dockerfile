@@ -11,13 +11,17 @@ RUN apt-get update && apt-get install -y \
     libx11-xcb1 libx11-6 libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
+# Avoid Pyppeteer downloading its own Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+ENV PYPPETEER_CHROMIUM_EXECUTABLE=/usr/bin/chromium
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py .
+COPY app.py screenshot_service.py .
 
-# Expose Koyeb health check port
 EXPOSE 10000
+EXPOSE 8000
 
-# Start FastAPI on port 10000 (matches Koyeb)
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "10000"]
+# Start Flask (health check) + FastAPI runs in background
+CMD ["python", "app.py"]
