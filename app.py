@@ -4,6 +4,10 @@ from fastapi.responses import FileResponse
 from pyppeteer import launch
 import uuid
 import os
+import subprocess
+
+# Start helper.py
+subprocess.Popen(["python", "helper.py"])
 
 app = FastAPI()
 
