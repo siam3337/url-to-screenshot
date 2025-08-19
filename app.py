@@ -1,17 +1,45 @@
-from flask import Flask, jsonify
-import subprocess
-import os
+from fastapi import FastAPI, Query
+from fastapi.responses import FileResponse, JSONResponse
+from pyppeteer import launch
+import uuid, os, logging
 
-# Start the actual screenshot service in background
-subprocess.Popen(["python", "helper.py"])
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("screenshot-api")
 
-app = Flask(__name__)
+app = FastAPI()
+OUTPUT_DIR = "screenshots"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-@app.route('/')
-def index():
-    # Respond immediately for health check
-    return jsonify({"status": "alive"})
+# Health check endpoint — responds immediately
+@app.get("/")
+def health():
+    return {"status": "alive"}
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+# Screenshot endpoint — launches Chromium on-demand
+@app.get("/screenshot")
+async def screenshot(url: str = Query(..., description="Website URL"),
+                     full_page: bool = Query(False, description="Full page screenshot")):
+    filename = f"{uuid.uuid4().hex}.png"
+    filepath = os.path.join(OUTPUT_DIR, filename)
+    try:
+        logger.info(f"Launching Chromium for {url}")
+        browser = await launch(
+            executablePath="/usr/bin/chromium",
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            ]
+        )
+        page = await browser.newPage()
+        await page.setViewport({"width": 1280, "height": 800})
+        await page.goto(url, {"waitUntil": "networkidle2", "timeout": 60000})
+        await page.screenshot({"path": filepath, "fullPage": full_page})
+        await browser.close()
+        logger.info(f"Screenshot saved: {filepath}")
+        return FileResponse(filepath, media_type="image/png", filename=filename)
+    except Exception as e:
+        logger.error(f"Screenshot error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
