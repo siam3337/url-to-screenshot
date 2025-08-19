@@ -1,20 +1,25 @@
 from flask import Flask, jsonify, request, Response
-import subprocess
+import threading
 import requests
-import os
+import uvicorn
+from screenshot_service import app as fastapi_app
 
-# Start FastAPI screenshot service in background (port 8000)
-subprocess.Popen(["python", "helper.py"])
+FASTAPI_PORT = 8000
+
+# Start FastAPI in a separate thread
+def run_fastapi():
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=FASTAPI_PORT)
+
+threading.Thread(target=run_fastapi, daemon=True).start()
 
 app = Flask(__name__)
-FASTAPI_PORT = 8000
 
 # Health check endpoint
 @app.route('/')
 def health():
     return jsonify({"status": "alive"})
 
-# Reverse proxy for screenshot
+# Reverse proxy for /screenshot
 @app.route('/screenshot')
 def screenshot_proxy():
     url = request.args.get("url")
@@ -22,7 +27,6 @@ def screenshot_proxy():
     if not url:
         return jsonify({"error": "Missing 'url' parameter"}), 400
 
-    # Forward request to FastAPI
     fastapi_url = f"http://127.0.0.1:{FASTAPI_PORT}/screenshot?url={url}&full_page={full_page}"
     try:
         r = requests.get(fastapi_url, stream=True)
@@ -31,5 +35,4 @@ def screenshot_proxy():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
