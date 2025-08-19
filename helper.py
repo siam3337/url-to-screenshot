@@ -1,9 +1,11 @@
+import asyncio
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 from pyppeteer import launch
 import uuid
 import os
 import logging
+import uvicorn
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("screenshot-api")
@@ -12,12 +14,6 @@ app = FastAPI()
 OUTPUT_DIR = "screenshots"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Health check endpoint — responds immediately
-@app.get("/")
-def home():
-    return {"message": "Screenshot API is running"}
-
-# Screenshot endpoint — launches Chromium on-demand
 @app.get("/screenshot")
 async def screenshot(url: str = Query(...), full_page: bool = False):
     filename = f"{uuid.uuid4().hex}.png"
@@ -27,12 +23,8 @@ async def screenshot(url: str = Query(...), full_page: bool = False):
         browser = await launch(
             executablePath="/usr/bin/chromium",
             headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu"
-            ]
+            args=["--no-sandbox", "--disable-setuid-sandbox",
+                  "--disable-dev-shm-usage", "--disable-gpu"]
         )
         page = await browser.newPage()
         await page.setViewport({"width": 1280, "height": 800})
@@ -43,3 +35,7 @@ async def screenshot(url: str = Query(...), full_page: bool = False):
     except Exception as e:
         logger.error(f"Screenshot error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+if __name__ == "__main__":
+    # Run FastAPI on a different port to avoid clash with Flask health check
+    uvicorn.run(app, host="0.0.0.0", port=8000)
