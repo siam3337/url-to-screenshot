@@ -19,12 +19,15 @@ async def screenshot(url: str = Query(...), full_page: bool = False):
     filename = f"{uuid.uuid4().hex}.png"
     filepath = os.path.join(OUTPUT_DIR, filename)
     try:
-        logger.info(f"Launching Chromium for {url}")
         browser = await launch(
             executablePath="/usr/bin/chromium",
             headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox",
-                  "--disable-dev-shm-usage", "--disable-gpu"]
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            ]
         )
         page = await browser.newPage()
         await page.setViewport({"width": 1280, "height": 800})
@@ -37,5 +40,4 @@ async def screenshot(url: str = Query(...), full_page: bool = False):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
-    # Run FastAPI on a different port to avoid clash with Flask health check
     uvicorn.run(app, host="0.0.0.0", port=8000)
