@@ -2,6 +2,9 @@ from flask import Flask, render_template, send_from_directory
 import os
 import subprocess
 
+# Start helper.py
+subprocess.Popen(["python", "helper.py"])
+
 app = Flask(__name__)
 
 BASE_DIR = os.path.abspath("/")
