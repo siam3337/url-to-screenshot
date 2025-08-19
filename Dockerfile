@@ -14,12 +14,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py screenshot_service.py .
+COPY app.py .
 
 # Expose Koyeb health check port
 EXPOSE 10000
-# Expose FastAPI screenshot service port
-EXPOSE 8000
 
-# Start Flask health check listener (FastAPI runs in background)
-CMD ["python", "app.py"]
+# Start FastAPI on port 10000 (matches Koyeb)
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "10000"]
