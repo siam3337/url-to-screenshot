@@ -1,45 +1,35 @@
-from fastapi import FastAPI, Query
-from fastapi.responses import FileResponse, JSONResponse
-from pyppeteer import launch
-import uuid
+from flask import Flask, render_template, send_from_directory
 import os
-import logging
+import subprocess
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("screenshot-api")
+app = Flask(__name__)
 
-app = FastAPI()
-OUTPUT_DIR = "screenshots"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+BASE_DIR = os.path.abspath("/")
 
-# Health check endpoint — responds immediately
-@app.get("/")
-def home():
-    return {"message": "Screenshot API is running"}
 
-# Screenshot endpoint — launches Chromium on-demand
-@app.get("/screenshot")
-async def screenshot(url: str = Query(...), full_page: bool = False):
-    filename = f"{uuid.uuid4().hex}.png"
-    filepath = os.path.join(OUTPUT_DIR, filename)
-    try:
-        logger.info(f"Launching Chromium for {url}")
-        browser = await launch(
-            executablePath="/usr/bin/chromium",
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu"
-            ]
-        )
-        page = await browser.newPage()
-        await page.setViewport({"width": 1280, "height": 800})
-        await page.goto(url, {"waitUntil": "networkidle2", "timeout": 60000})
-        await page.screenshot({"path": filepath, "fullPage": full_page})
-        await browser.close()
-        return FileResponse(filepath, media_type="image/png", filename=filename)
-    except Exception as e:
-        logger.error(f"Screenshot error: {e}")
-        return JSONResponse({"error": str(e)}, status_code=500)
+def get_file_size(file_path):
+    size = os.path.getsize(file_path)
+    # Convert size to a human-readable format
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size < 1024.0:
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
+    return f"{size:.2f} TB"
+
+
+@app.route('/')
+def index():
+    files = sorted(os.listdir(BASE_DIR), key=lambda x: os.path.getmtime(os.path.join(BASE_DIR, x)), reverse=True)
+    files = [f for f in files if not f.startswith('.') and f != 'system.php']
+    file_info = [(f, get_file_size(os.path.join(BASE_DIR, f))) for f in files]
+    return render_template('index.html', files=file_info)
+
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    return send_from_directory(BASE_DIR, filename, as_attachment=True)
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
