@@ -4,7 +4,7 @@ import requests
 import os
 
 # Start FastAPI screenshot service in background (port 8000)
-subprocess.Popen(["python", "screenshot_service.py"])
+subprocess.Popen(["python", "helper.py"])
 
 app = Flask(__name__)
 FASTAPI_PORT = 8000
